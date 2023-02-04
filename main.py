@@ -8,6 +8,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from PIL import Image, ImageDraw
+from deep_translator import GoogleTranslator
 
 import uuid
 import time
@@ -28,10 +29,11 @@ class Form(StatesGroup):
 #buttons
 start_butn_user = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text='Мероприятия')],
+        # [KeyboardButton(text='Мероприятия')],
+        [KeyboardButton(text='Фиджитал игры')],
         [KeyboardButton(text='Мои мероприятия')],
         [KeyboardButton(text='Профиль')],
-    ], resize_keyboard=True, one_time_keyboard=True
+    ], resize_keyboard=True
 )
 
 
@@ -41,7 +43,7 @@ start_butn_admin = ReplyKeyboardMarkup(
         [KeyboardButton(text='Мои мероприятия')],
         [KeyboardButton(text='Профиль')],
         [KeyboardButton(text='Fiji')],
-    ], resize_keyboard=True, one_time_keyboard=True
+    ], resize_keyboard=True
 )
 
 
@@ -49,7 +51,16 @@ eventuser = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text='Доступные мероприятия')],
         [KeyboardButton(text='Приватные мероприятия')],
-    ], resize_keyboard=True, one_time_keyboard=True
+        [KeyboardButton(text='Назад')],
+    ], resize_keyboard=True
+)
+
+
+regfiji = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text='Записаться на мероприятие')],
+        [KeyboardButton(text='Назад')],
+    ], resize_keyboard=True
 )
 
 
@@ -58,7 +69,8 @@ eventorg = ReplyKeyboardMarkup(
         [KeyboardButton(text='Доступные мероприятия')],
         [KeyboardButton(text='Приватные мероприятия')],
         [KeyboardButton(text='Создать мероприятие')],
-    ], resize_keyboard=True, one_time_keyboard=True
+        [KeyboardButton(text='Назад')],
+    ], resize_keyboard=True
 )
 
 #--------------------------------------------
@@ -112,10 +124,10 @@ async def start(message: types.Message):
                         (0, 0, 0, tg_id, 0, 0))
         chanel = types.InlineKeyboardMarkup(1)
         chanel.add(types.InlineKeyboardButton(text="ЖМИ", callback_data=f"chanel", url="https://t.me/fidjital1547"))
-        await message.answer("Привет, я бот, который поможет тебе учавствовать в разных мероприятиях школы и получать крутые призы!\nТакже подписывайся на канал, чтобы не пропустить ни одного мероприятия!", reply_markup=chanel)
+        await message.answer("Привет, я бот, который поможет тебе учавствовать в мероприятиях школы и получать крутые призы!\nТакже подписывайся на нашу группу, чтобы не пропустить ни одного мероприятия!", reply_markup=chanel)
         time.sleep(2)
         markup = types.ReplyKeyboardRemove()
-        await message.answer("Для начала, напиши своё <i>ИМЯ</i>, чтобы я мог тебя запомнить!", reply_markup=markup, parse_mode="HTML")
+        await message.answer("Для начала, напиши своё <i>имя</i>, чтобы я мог тебя запомнить!", reply_markup=markup, parse_mode="HTML")
         await Form.name.set()
     elif db_role == 0:
         await message.answer("Меню", reply_markup=start_butn_user)
@@ -128,7 +140,7 @@ async def start(message: types.Message):
 async def name(message: types.Message, state: FSMContext):
     name = message.text
     db_execute("UPDATE users SET name = (?) WHERE id = (?)", (name, message.from_user.id))
-    await message.answer("Молодец! 👀\nНапиши свою <i>ФАМИЛИЮ</i>", parse_mode="HTML")
+    await message.answer("Молодец! Теперь мне нужна твоя <i>фамилия</i>", parse_mode="HTML")
     await Form.sname.set()
     
 
@@ -136,7 +148,7 @@ async def name(message: types.Message, state: FSMContext):
 async def sname(message: types.Message, state: FSMContext):
     surname = message.text
     db_execute("UPDATE users SET surname = (?) WHERE id = (?)", (surname, message.from_user.id))
-    await message.answer("Последний шаг! Напиши своё <i>ОТЧЕСТВО</i>", parse_mode="HTML")
+    await message.answer("Последний шаг! Напиши своё <i>отчество</i>", parse_mode="HTML")
     await Form.sec_name.set()
 
 
@@ -148,6 +160,11 @@ async def secname(message: types.Message, state: FSMContext):
     await state.finish()
 
 
+@dp.message_handler(text="Фиджитал игры")
+async def games(message: types.Message):
+    await message.answer("Выберите игру", reply_markup=regfiji)
+
+
 @dp.message_handler(text="Профиль")
 async def profile(message: types.Message):
     tg_id = message.from_user.id
@@ -155,7 +172,7 @@ async def profile(message: types.Message):
     surname = db_fetchone("SELECT surname FROM users WHERE id = ?", (tg_id,))[0]
     second_name = db_fetchone("SELECT second_name FROM users WHERE id = ?", (tg_id,))[0]
     role = db_fetchone("SELECT role FROM users WHERE id = ?", (tg_id,))[0]
-    balance = db_fetchone("SELECT balance FROM users WHERE id = ?", (tg_id,))[0]
+    balancecoin = db_fetchone("SELECT balance FROM users WHERE id = ?", (tg_id,))[0]
     fio = f"{surname} {name} {second_name}"
     if role == 0:
         role = "Пользователь"
@@ -163,10 +180,33 @@ async def profile(message: types.Message):
         role = "Организатор"
     elif role == 2:
         role = "Администратор"
-    await message.answer(f"<i>ФИО</i> — <b>{fio}</b>\n\n<i>Роль</i> — <b>{role}</b>\n\n<i>Баланс</i> — <b>{balance} (FijiCoins)</>", parse_mode="HTML")  #reply_markup=start_butn
+    if balancecoin == 1:
+        translate = f'1 fidjicoin'
+        translated = GoogleTranslator(source='en', target='ru').translate(translate)
+    else:
+        translate = f'{balancecoin} fidjicoins'
+        translated = GoogleTranslator(source='en', target='ru').translate(translate)
+    balance = f"<i><b>Баланс</b></i> — {translated}"
+    await message.answer(f"<i><b>ФИО</b></i> — {fio}\n\n<i><b>Роль</b></i> — {role}\n\n{balance}", parse_mode="HTML")  #reply_markup=start_butn
+
+@dp.message_handler(text="Мероприятия")
+async def events(message: types.Message):
+    tg_id = message.from_user.id
+    role = db_fetchone("SELECT role FROM users WHERE id = ?", (tg_id,))[0]
+    if role == 0:
+        msg = await message.answer("Панель мероприятий", reply_markup=eventuser)
+    elif role == 1:
+        msg = await message.answer("Панель мероприятий", reply_markup=eventorg)
 
 
-
+@dp.message_handler(text="Назад")
+async def back(message: types.Message):
+    tg_id = message.from_user.id
+    role = db_fetchone("SELECT role FROM users WHERE id = ?", (tg_id,))[0]
+    if role == 0:
+        await message.answer("Меню", reply_markup=start_butn_user)
+    elif role == 1:
+        await message.answer("Меню", reply_markup=start_butn_admin)
 
 
 executor.start_polling(dp, skip_updates=False)
