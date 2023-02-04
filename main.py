@@ -108,14 +108,14 @@ async def start(message: types.Message):
     if db_role is not None:
         db_role = db_role[0]
     if db_role is None:
-        db_execute("INSERT INTO users VALUES (?, ?, ?, ?, ?)",
-                        (0, 0, 0, tg_id, 0))
+        db_execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)",
+                        (0, 0, 0, tg_id, 0, 0))
         chanel = types.InlineKeyboardMarkup(1)
         chanel.add(types.InlineKeyboardButton(text="ЖМИ", callback_data=f"chanel", url="https://t.me/fidjital1547"))
         await message.answer("Привет, я бот, который поможет тебе учавствовать в разных мероприятиях школы и получать крутые призы!\nТакже подписывайся на канал, чтобы не пропустить ни одного мероприятия!", reply_markup=chanel)
         time.sleep(2)
         markup = types.ReplyKeyboardRemove()
-        await message.answer("Для начала, напиши своё <i>имя</i>, чтобы я мог тебя запомнить!", reply_markup=markup, parse_mode="HTML")
+        await message.answer("Для начала, напиши своё <i>ИМЯ</i>, чтобы я мог тебя запомнить!", reply_markup=markup, parse_mode="HTML")
         await Form.name.set()
     elif db_role == 0:
         await message.answer("Меню", reply_markup=start_butn_user)
@@ -128,7 +128,7 @@ async def start(message: types.Message):
 async def name(message: types.Message, state: FSMContext):
     name = message.text
     db_execute("UPDATE users SET name = (?) WHERE id = (?)", (name, message.from_user.id))
-    await message.answer("Теперь напиши свою <i>фамилию</i>", parse_mode="HTML")
+    await message.answer("Молодец! 👀\nНапиши свою <i>ФАМИЛИЮ</i>", parse_mode="HTML")
     await Form.sname.set()
     
 
@@ -136,7 +136,7 @@ async def name(message: types.Message, state: FSMContext):
 async def sname(message: types.Message, state: FSMContext):
     surname = message.text
     db_execute("UPDATE users SET surname = (?) WHERE id = (?)", (surname, message.from_user.id))
-    await message.answer("Далее напиши своё <i>отчество</i>", parse_mode="HTML")
+    await message.answer("Последний шаг! Напиши своё <i>ОТЧЕСТВО</i>", parse_mode="HTML")
     await Form.sec_name.set()
 
 
