@@ -14,6 +14,7 @@ import uuid
 import time
 import random
 import sqlite3
+import copy
 
 
 
@@ -29,8 +30,8 @@ class Form(StatesGroup):
 #buttons
 start_butn_user = ReplyKeyboardMarkup(
     keyboard=[
-        # [KeyboardButton(text='Мероприятия')],
-        [KeyboardButton(text='Фиджитал игры')],
+        [KeyboardButton(text='Мероприятия')],
+        # [KeyboardButton(text='Фиджитал игры')],
         [KeyboardButton(text='Мои мероприятия')],
         [KeyboardButton(text='Профиль')],
     ], resize_keyboard=True
@@ -82,7 +83,6 @@ def db_execute(*args, **kwargs):
     db.commit()
     db.close()
 
-
 def db_fetchone(*args, **kwargs):
     db = sqlite3.connect('database.db')
     cursor = db.cursor()
@@ -91,7 +91,6 @@ def db_fetchone(*args, **kwargs):
     db.commit()
     db.close()
     return items
-
 
 def db_fetchall(*args, **kwargs):
     db = sqlite3.connect('database.db')
@@ -102,7 +101,6 @@ def db_fetchall(*args, **kwargs):
     db.close()
     return items
 
-
 def db_fetchmany(many, *args, **kwargs):
     db = sqlite3.connect('database.db')
     cursor = db.cursor()
@@ -111,6 +109,15 @@ def db_fetchmany(many, *args, **kwargs):
     db.commit()
     db.close()
     return items
+
+def db_getlen(table):
+    return len(db_fetchall(f'SELECT * FROM {table}'))
+
+def split_list(input_list):
+    output = []
+    for i in range(0, len(input_list), 5):
+        output.append(input_list[i:i+5])
+    return output
 
 
 @dp.message_handler(commands=["start"])
@@ -124,7 +131,7 @@ async def start(message: types.Message):
                         (0, 0, 0, tg_id, 0, 0))
         chanel = types.InlineKeyboardMarkup(1)
         chanel.add(types.InlineKeyboardButton(text="ЖМИ", callback_data=f"chanel", url="https://t.me/fidjital1547"))
-        await message.answer("Привет, я бот, который поможет тебе учавствовать в мероприятиях школы и получать крутые призы!\nТакже подписывайся на нашу группу, чтобы не пропустить ни одного мероприятия!", reply_markup=chanel)
+        await message.answer("Привет, я бот, который поможет тебе участвовать в мероприятиях школы и получать крутые призы!\nТакже подписывайся на нашу группу, чтобы не пропустить ни одного мероприятия!", reply_markup=chanel)
         time.sleep(2)
         markup = types.ReplyKeyboardRemove()
         await message.answer("Для начала, напиши своё <i>имя</i>, чтобы я мог тебя запомнить!", reply_markup=markup, parse_mode="HTML")
@@ -159,10 +166,55 @@ async def secname(message: types.Message, state: FSMContext):
     await message.answer("<b>Регистрация завершена</b>✅\nИзменить <i>свои данные</i> можно в профиле!", reply_markup=start_butn_user, parse_mode="HTML")
     await state.finish()
 
+a = {}
 
-@dp.message_handler(text="Фиджитал игры")
+@dp.message_handler(text='Мероприятия')
 async def games(message: types.Message):
-    await message.answer("Выберите игру", reply_markup=regfiji)
+    events = db_fetchall("SELECT name, rowid FROM events")
+    arr = [[]]
+    n = len(events)
+    q = 4
+    if n%q == 0:
+        pages = n//q
+    else:
+        pages = n//q + 1
+    while len(arr) < pages:
+        arr.append([])
+    for i in range(n):
+        arr[i//q].append(events[i][0])
+    for i in range(len(arr)):
+        arr[i].append('»')
+    event = types.InlineKeyboardMarkup(1)
+    listall = copy.deepcopy(arr)
+    arrarch = copy.deepcopy(arr)
+    listall1 = ""
+    arrarch1 = ""
+    listall.remove(listall[0])
+    for i in listall:
+        for j in i:
+            listall1 += f"{j},"
+    for k in arrarch:
+        for x in k:
+            arrarch1 += f"{x},"
+    print(len(arrarch1))
+    for i in arr[0]:
+        event.add(types.InlineKeyboardButton(text=i, callback_data=f"page|{i}|{listall1}"))
+    await message.answer("Мероприятия", reply_markup=event)
+#функция, которая принимает кол-во элементов на странице и страницу и возвращает маленький массив из событий
+#поставить фильтр по id >= N и limit 5
+#для самого первого запроса не нужно ставить фильтр по id и ставить просто limit 5
+#если полетит сервер, то исчезнет бд, поэтому стоит задуматься над облачными серверами
+
+@dp.callback_query_handler(lambda c: c.data.startswith('page'))
+async def page(callback: types.CallbackQuery):
+    data = callback.data.split('|')
+    if data[1] == '»':
+        a = data[2].split(', ')
+        a.remove(a[-1])
+        print(split_list(a))
+    else:
+        await bot.edit_message_reply_markup(callback.from_user.id, callback.message.message_id, reply_markup=None)
+
 
 
 @dp.message_handler(text="Профиль")
@@ -189,14 +241,14 @@ async def profile(message: types.Message):
     balance = f"<i><b>Баланс</b></i> — {translated}"
     await message.answer(f"<i><b>ФИО</b></i> — {fio}\n\n<i><b>Роль</b></i> — {role}\n\n{balance}", parse_mode="HTML")  #reply_markup=start_butn
 
-@dp.message_handler(text="Мероприятия")
-async def events(message: types.Message):
-    tg_id = message.from_user.id
-    role = db_fetchone("SELECT role FROM users WHERE id = ?", (tg_id,))[0]
-    if role == 0:
-        msg = await message.answer("Панель мероприятий", reply_markup=eventuser)
-    elif role == 1:
-        msg = await message.answer("Панель мероприятий", reply_markup=eventorg)
+# @dp.message_handler(text="Мероприятия")
+# async def events(message: types.Message):
+#     tg_id = message.from_user.id
+#     role = db_fetchone("SELECT role FROM users WHERE id = ?", (tg_id,))[0]
+#     if role == 0:
+#         msg = await message.answer("Панель мероприятий", reply_markup=eventuser)
+#     elif role == 1:
+#         msg = await message.answer("Панель мероприятий", reply_markup=eventorg)
 
 
 @dp.message_handler(text="Назад")
