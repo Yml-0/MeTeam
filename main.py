@@ -7,6 +7,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
+import aiogram.utils.markdown as md
 from PIL import Image, ImageDraw
 from deep_translator import GoogleTranslator
 
@@ -119,6 +120,22 @@ def split_list(input_list):
         output.append(input_list[i:i+5])
     return output
 
+def do_pages(limit):
+    events = db_fetchall('SELECT name, rowid FROM events')
+    events_len = len(db_fetchall("SELECT * FROM events"))
+    arr = [[]]
+    if events_len % limit == 0:
+        pages = events_len // limit
+    else:
+        pages = events_len // limit + 1
+    while len(arr) < pages:
+        arr.append([])
+    for i in range(events_len):
+        arr[i // limit].append(events[i])
+    return arr
+
+def get_page(page, limit):
+    return do_pages(limit)[page - 1]
 
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
@@ -166,55 +183,57 @@ async def secname(message: types.Message, state: FSMContext):
     await message.answer("<b>Регистрация завершена</b>✅\nИзменить <i>свои данные</i> можно в профиле!", reply_markup=start_butn_user, parse_mode="HTML")
     await state.finish()
 
-a = {}
 
 @dp.message_handler(text='Мероприятия')
 async def games(message: types.Message):
-    events = db_fetchall("SELECT name, rowid FROM events")
-    arr = [[]]
-    n = len(events)
-    q = 4
-    if n%q == 0:
-        pages = n//q
-    else:
-        pages = n//q + 1
-    while len(arr) < pages:
-        arr.append([])
-    for i in range(n):
-        arr[i//q].append(events[i][0])
-    for i in range(len(arr)):
-        arr[i].append('»')
-    event = types.InlineKeyboardMarkup(1)
-    listall = copy.deepcopy(arr)
-    arrarch = copy.deepcopy(arr)
-    listall1 = ""
-    arrarch1 = ""
-    listall.remove(listall[0])
-    for i in listall:
-        for j in i:
-            listall1 += f"{j},"
-    for k in arrarch:
-        for x in k:
-            arrarch1 += f"{x},"
-    print(len(arrarch1))
-    for i in arr[0]:
-        event.add(types.InlineKeyboardButton(text=i, callback_data=f"page|{i}|{listall1}"))
+    page = 1
+    limit = 4
+    arr = get_page(page, limit)
+    event = types.InlineKeyboardMarkup(2)
+    for i in arr:
+        event.add(types.InlineKeyboardButton(text=i[0], callback_data=f"page|{i[1]}"))
+    list = []
+    list.append(types.InlineKeyboardButton(text="»", callback_data=f"page|{page+1}"))
+    event.add(*list)
     await message.answer("Мероприятия", reply_markup=event)
-#функция, которая принимает кол-во элементов на странице и страницу и возвращает маленький массив из событий
-#поставить фильтр по id >= N и limit 5
-#для самого первого запроса не нужно ставить фильтр по id и ставить просто limit 5
-#если полетит сервер, то исчезнет бд, поэтому стоит задуматься над облачными серверами
+
 
 @dp.callback_query_handler(lambda c: c.data.startswith('page'))
 async def page(callback: types.CallbackQuery):
     data = callback.data.split('|')
-    if data[1] == '»':
-        a = data[2].split(', ')
-        a.remove(a[-1])
-        print(split_list(a))
+    page = int(data[1])
+    limit = 4
+    arr = get_page(page, limit)
+    events_len = len(db_fetchall("SELECT * FROM events"))
+    if events_len % limit == 0:
+        pages = events_len // limit
     else:
-        await bot.edit_message_reply_markup(callback.from_user.id, callback.message.message_id, reply_markup=None)
-
+        pages = events_len // limit + 1
+    if page == pages:
+        event = types.InlineKeyboardMarkup(2)
+        for i in arr:
+            event.add(types.InlineKeyboardButton(text=i[0], callback_data=f"page|{i[1]}"))
+        list = []
+        list.append(types.InlineKeyboardButton(text="«", callback_data=f"page|{page-1}"))
+        event.add(*list)
+        await callback.message.edit_reply_markup(reply_markup=event)
+    elif page == 1:
+        event = types.InlineKeyboardMarkup(2)
+        for i in arr:
+            event.add(types.InlineKeyboardButton(text=i[0], callback_data=f"page|{i[1]}"))
+        list = []
+        list.append(types.InlineKeyboardButton(text="»", callback_data=f"page|{page+1}"))
+        event.add(*list)
+        await callback.message.edit_reply_markup(reply_markup=event)
+    else:
+        event = types.InlineKeyboardMarkup(2)
+        for i in arr:
+            event.add(types.InlineKeyboardButton(text=i[0], callback_data=f"page|{i[1]}"))
+        list = []
+        list.append(types.InlineKeyboardButton(text="«", callback_data=f"page|{page-1}"))
+        list.append(types.InlineKeyboardButton(text="»", callback_data=f"page|{page+1}"))
+        event.add(*list)
+        await callback.message.edit_reply_markup(reply_markup=event)
 
 
 @dp.message_handler(text="Профиль")
