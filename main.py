@@ -11,6 +11,8 @@ import aiogram.utils.markdown as md
 from PIL import Image, ImageDraw
 from deep_translator import GoogleTranslator
 
+import qrcode
+import os
 import uuid
 import time
 import random
@@ -144,8 +146,8 @@ async def start(message: types.Message):
     if db_role is not None:
         db_role = db_role[0]
     if db_role is None:
-        db_execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)",
-                        (0, 0, 0, tg_id, 0, 0))
+        db_execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (0, 0, 0, tg_id, 0, 0, 0))
         chanel = types.InlineKeyboardMarkup(1)
         chanel.add(types.InlineKeyboardButton(text="ЖМИ", callback_data=f"chanel", url="https://t.me/fidjital1547"))
         await message.answer("Привет, я бот, который поможет тебе участвовать в мероприятиях школы и получать крутые призы!\nТакже подписывайся на нашу группу, чтобы не пропустить ни одного мероприятия!", reply_markup=chanel)
@@ -185,7 +187,7 @@ async def secname(message: types.Message, state: FSMContext):
 
 
 @dp.message_handler(text='Мероприятия')
-async def games(message: types.Message):
+async def events(message: types.Message):
     page = 1
     limit = 4
     arr = get_page(page, limit)
@@ -193,7 +195,6 @@ async def games(message: types.Message):
     event = types.InlineKeyboardMarkup(2)
     for i in arr:
         event.add(types.InlineKeyboardButton(text=i[0], callback_data=f"page|btn|{i[1]}|{page}"))
-        print(page)
     if events_len > limit:
         list = []
         list.append(types.InlineKeyboardButton(text="»", callback_data=f"page|page|{page+1}"))
@@ -210,7 +211,7 @@ async def page(callback: types.CallbackQuery):
         name = db_fetchone("SELECT * FROM events WHERE rowid = ?", (rowid,))[0]
         description = db_fetchone("SELECT * FROM events WHERE rowid = ?", (rowid,))[1]
         regin = types.InlineKeyboardMarkup(2)
-        regin.add(types.InlineKeyboardButton(text="Участвовать", callback_data=f"event|{rowid}"))
+        regin.add(types.InlineKeyboardButton(text="Участвовать", callback_data=f"registration|{rowid}"))
         regin.add(types.InlineKeyboardButton(text="Назад", callback_data=f"page|page|{page}"))
         await callback.message.edit_text(f'Мероприятие: "{name}"\nОписание: {description}', reply_markup=regin)
     elif data[1] == "page":
@@ -251,6 +252,54 @@ async def page(callback: types.CallbackQuery):
             await callback.message.edit_text("Доступные мероприятия:", reply_markup=event)
 
 
+@dp.callback_query_handler(lambda c: c.data.startswith('registration'))
+async def registration(callback: types.CallbackQuery):
+    data = callback.data.split('|')
+    rowid = data[1]
+    tg_id = callback.from_user.id
+    ids = db_fetchone("SELECT members_id FROM events WHERE rowid = ?", (rowid,))[0]
+    if ids == None or ids == "0":
+        db_execute("UPDATE events SET members_id = (?) WHERE rowid = (?)", (tg_id, rowid))
+    else:
+        ids = ids.split(',')
+        if str(tg_id) in ids:
+            await callback.message.edit_text("Вы уже зарегистрированы на это мероприятие!", reply_markup=None)
+            return
+        else:
+            ids.append(str(tg_id))
+            ids = ','.join(ids)
+            db_execute("UPDATE events SET members_id = (?) WHERE rowid = (?)", (ids, rowid))
+
+    ids_users = db_fetchone("SELECT events FROM users WHERE id = ?", (tg_id,))[0]
+    if ids_users == None or ids_users == "0":
+        db_execute("UPDATE users SET events = (?) WHERE id = (?)", (rowid, tg_id))
+    else:
+        ids_users = ids_users.split(',')
+        if str(rowid) in ids_users:
+            return
+        else:
+            ids_users.append(str(rowid))
+            ids_users = ','.join(ids_users)
+            db_execute("UPDATE users SET events = (?) WHERE id = (?)", (ids_users, tg_id))
+    await callback.message.edit_text("Вы успешно зарегистрировались на мероприятие! Активные мероприятия можно посмотреть в профиле", reply_markup=None)
+
+    #creating qr
+    # name = db_fetchone("SELECT * FROM events WHERE rowid = ?", (rowid,))[0]
+    # filename = f"{name}.png"
+    # uu_id = uuid.uuid4()
+    # filename = f"{uu_id}.png"
+    # qr = QRCodeStyled()
+
+    # with open(os.path.join("/qr_codes/", filename), 'wb') as photo:
+    #     qr.get_image(str(uu_id)).save(photo, format='WEBP', quality=0)
+
+    # img1 = Image.open(os.path.join("/qr_codes/background/background.png"))
+    # width, height = img1.size
+    # img2 = Image.open(os.path.join("/qr_codes/", filename))
+    # img1.paste(img2, (0, 0))
+    # img1.save(os.path.join("/qr_codes/", filename))
+
+
 @dp.message_handler(text="Профиль")
 async def profile(message: types.Message):
     tg_id = message.from_user.id
@@ -273,16 +322,8 @@ async def profile(message: types.Message):
         translate = f'{balancecoin} fidjicoins'
         translated = GoogleTranslator(source='en', target='ru').translate(translate)
     balance = f"<i><b>Баланс</b></i> — {translated}"
-    await message.answer(f"<i><b>ФИО</b></i> — {fio}\n\n<i><b>Роль</b></i> — {role}\n\n{balance}", parse_mode="HTML")  #reply_markup=start_butn
-
-# @dp.message_handler(text="Мероприятия")
-# async def events(message: types.Message):
-#     tg_id = message.from_user.id
-#     role = db_fetchone("SELECT role FROM users WHERE id = ?", (tg_id,))[0]
-#     if role == 0:
-#         msg = await message.answer("Панель мероприятий", reply_markup=eventuser)
-#     elif role == 1:
-#         msg = await message.answer("Панель мероприятий", reply_markup=eventorg)
+    await message.answer(f"<i><b>ФИО</b></i> — {fio}\n\n<i><b>Роль</b></i> — {role}\n\n{balance}", parse_mode="HTML")
+    #Сделать кнопку отправки заявки на получение роли организатора
 
 
 @dp.message_handler(text="Назад")
