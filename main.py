@@ -1,4 +1,5 @@
 from qrcode_styled import ERROR_CORRECT_Q, QRCodeStyled
+from qrcode.constants import ERROR_CORRECT_L
 from aiogram import Bot, Dispatcher, types
 from aiogram.types.message import ContentType
 from aiogram.utils import executor
@@ -8,7 +9,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 import aiogram.utils.markdown as md
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 from deep_translator import GoogleTranslator
 
 import qrcode
@@ -35,7 +36,7 @@ start_butn_user = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text='Мероприятия')],
         # [KeyboardButton(text='Фиджитал игры')],
-        [KeyboardButton(text='Мои мероприятия')],
+        # [KeyboardButton(text='Мои мероприятия')],
         [KeyboardButton(text='Профиль')],
     ], resize_keyboard=True
 )
@@ -284,20 +285,22 @@ async def registration(callback: types.CallbackQuery):
     await callback.message.edit_text("Вы успешно зарегистрировались на мероприятие! Активные мероприятия можно посмотреть в профиле", reply_markup=None)
 
     #creating qr
-    # name = db_fetchone("SELECT * FROM events WHERE rowid = ?", (rowid,))[0]
-    # filename = f"{name}.png"
-    # uu_id = uuid.uuid4()
-    # filename = f"{uu_id}.png"
-    # qr = QRCodeStyled()
-
-    # with open(os.path.join("/qr_codes/", filename), 'wb') as photo:
-    #     qr.get_image(str(uu_id)).save(photo, format='WEBP', quality=0)
-
-    # img1 = Image.open(os.path.join("/qr_codes/background/background.png"))
-    # width, height = img1.size
-    # img2 = Image.open(os.path.join("/qr_codes/", filename))
-    # img1.paste(img2, (0, 0))
-    # img1.save(os.path.join("/qr_codes/", filename))
+    event_name = db_fetchone("SELECT name FROM events WHERE rowid = ?", (rowid,))[0]
+    name = db_fetchone("SELECT name FROM users WHERE id = ?", (tg_id,))[0]
+    surname = db_fetchone("SELECT surname FROM users WHERE id = ?", (tg_id,))[0]
+    second_name = db_fetchone("SELECT second_name FROM users WHERE id = ?", (tg_id,))[0]
+    fio = name + " " + surname + " " + second_name
+    filename = f"1.png"
+    qr = QRCodeStyled()
+    with open(os.path.join("qr_codes/", filename), 'wb') as photo:
+        qr.get_image(f"{fio} {event_name} {tg_id}").save(photo, "WEBP", quality=0)
+    img1 = Image.open(os.path.join("qr_codes/background/background.png"))
+    img2 = Image.open(os.path.join("qr_codes/", filename))
+    img2 = img2.resize((850, 850))
+    im = img2.crop((5, 5, img2.size[0]-5, img2.size[1]-5))
+    img1.paste(im, (340, 735))
+    img1.save(os.path.join("qr_codes/", filename))
+    await bot.send_photo(tg_id, open(os.path.join("qr_codes/", filename), 'rb'), caption="Ваш QR-код для прохода на мероприятие")
 
 
 @dp.message_handler(text="Профиль")
@@ -323,7 +326,7 @@ async def profile(message: types.Message):
         translated = GoogleTranslator(source='en', target='ru').translate(translate)
     balance = f"<i><b>Баланс</b></i> — {translated}"
     await message.answer(f"<i><b>ФИО</b></i> — {fio}\n\n<i><b>Роль</b></i> — {role}\n\n{balance}", parse_mode="HTML")
-    #Сделать кнопку отправки заявки на получение роли организатора
+    #Сделать кнопку отправки заявки на получение роли организатора и мои мероприятия
 
 
 @dp.message_handler(text="Назад")
