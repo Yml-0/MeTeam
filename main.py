@@ -293,7 +293,7 @@ async def registration(callback: types.CallbackQuery):
     filename = f"1.png"
     qr = QRCodeStyled()
     with open(os.path.join("qr_codes/", filename), 'wb') as photo:
-        qr.get_image(f"{fio} {event_name} {tg_id}").save(photo, "WEBP", quality=0)
+        qr.get_image(f"{name} {surname}").save(photo, "WEBP", quality=0)
     img1 = Image.open(os.path.join("qr_codes/background/background.png"))
     img2 = Image.open(os.path.join("qr_codes/", filename))
     img2 = img2.resize((850, 850))
