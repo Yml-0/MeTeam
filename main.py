@@ -332,7 +332,7 @@ async def registration(callback: types.CallbackQuery):
             ids_users.append(str(rowid))
             ids_users = ','.join(ids_users)
             db_execute("UPDATE users SET events = (?) WHERE id = (?)", (ids_users, tg_id))
-    await callback.message.edit_text("Вы успешно зарегистрировались на мероприятие! Активные мероприятия можно посмотреть в профиле", reply_markup=None)
+    await callback.message.edit_text("Вы успешно зарегистрировались на мероприятие!", reply_markup=None) #Активные мероприятия можно посмотреть в профиле
 
     #creating qr
     event_name = db_fetchone("SELECT name FROM events WHERE rowid = ?", (rowid,))[0]
