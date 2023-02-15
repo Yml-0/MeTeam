@@ -201,12 +201,14 @@ async def results3(message: types.Message, state: FSMContext):
     place2 = (await state.get_data())['place2']
     place3 = message.text
     str_ent = db_fetchone("SELECT * FROM events WHERE rowid = ?", (rowid,))[3].split(",")
-    text = f"Уважаемые участники Фиджитал Игр!\nМы подвели итоги и публикуем результаты:\n1 место – {place1}\n2 место – {place2}\n3 место – {place3}\nБлагодарим всех за активное участие! До новых встреч!"
+    text = f"Уважаемые участники <b>Фиджитал Игр!</b>\nМы подвели итоги и публикуем результаты:\n1 место – <i>{place1}</i>\n2 место – <i>{place2}</i>\n3 место – <i>{place3}</i>\nБлагодарим всех за активное участие! До новых встреч!"
     try:
         for i in range(len(str_ent)):
-            await bot.send_message(int(str_ent[i]), text)
+            await bot.send_message(int(str_ent[i]), text, parse_mode="HTML")
     except:
         await message.answer("Ошибка. Возможно, пользователей нет в базе данных")
+    await message.answer("Результаты опубликованы!")
+    await state.finish()
 
 
 @dp.message_handler(state=Form.name)
