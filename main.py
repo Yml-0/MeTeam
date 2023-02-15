@@ -30,6 +30,9 @@ class Form(StatesGroup):
     name = State()
     sname = State()
     sec_name = State()
+    results = State()
+    results2 = State()
+    results3 = State()
 
 #buttons
 start_butn_user = ReplyKeyboardMarkup(
@@ -162,6 +165,49 @@ async def start(message: types.Message):
         await message.answer("Меню", reply_markup=start_butn_admin)
 
 
+@dp.message_handler(commands=["results"])
+async def results(message: types.Message):
+    if message.from_user.id != 639545029 or message.from_user.id != 1087465791:
+        await message.answer("Введите Название команды, которая заняла 1 место")
+        await Form.results.set()
+    else:
+        await message.answer("Ты не админ!")
+
+
+@dp.message_handler(state=Form.results)
+async def results(message: types.Message, state: FSMContext):
+    place1 = message.text
+    await message.answer("Введите Название команды, которая заняла 2 место")
+    await Form.results2.set()
+    async with state.proxy() as data:
+        data['place1'] = place1
+
+
+@dp.message_handler(state=Form.results2)
+async def results2(message: types.Message, state: FSMContext):
+    place1 = (await state.get_data())['place1']
+    place2 = message.text
+    await message.answer("Введите Название команды, которая заняла 3 место")
+    await Form.results3.set()
+    async with state.proxy() as data:
+        data['place1'] = place1
+        data['place2'] = place2
+
+
+@dp.message_handler(state=Form.results3)
+async def results3(message: types.Message, state: FSMContext):
+    rowid = 1
+    place1 = (await state.get_data())['place1']
+    place2 = (await state.get_data())['place2']
+    place3 = message.text
+    str_ent = db_fetchone("SELECT * FROM events WHERE rowid = ?", (rowid,))[3].split(",")
+    text = f"Уважаемые участники Фиджитал Игр!\nМы подвели итоги и публикуем результаты:\n1 место – {place1}\n2 место – {place2}\n3 место – {place3}\nБлагодарим всех за активное участие! До новых встреч!"
+    try:
+        for i in range(len(str_ent)):
+            await bot.send_message(int(str_ent[i]), text)
+    except:
+        await message.answer("Ошибка. Возможно, пользователей нет в базе данных")
+
 
 @dp.message_handler(state=Form.name)
 async def name(message: types.Message, state: FSMContext):
@@ -211,10 +257,12 @@ async def page(callback: types.CallbackQuery):
         page = int(data[3])
         name = db_fetchone("SELECT * FROM events WHERE rowid = ?", (rowid,))[0]
         description = db_fetchone("SELECT * FROM events WHERE rowid = ?", (rowid,))[1]
+        date = db_fetchone("SELECT * FROM events WHERE rowid = ?", (rowid,))[2]
+        place = db_fetchone("SELECT * FROM events WHERE rowid = ?", (rowid,))[5]
         regin = types.InlineKeyboardMarkup(2)
         regin.add(types.InlineKeyboardButton(text="Участвовать", callback_data=f"registration|{rowid}"))
         regin.add(types.InlineKeyboardButton(text="Назад", callback_data=f"page|page|{page}"))
-        await callback.message.edit_text(f'Мероприятие: "{name}"\nОписание: {description}', reply_markup=regin)
+        await callback.message.edit_text(f'Мероприятие: "{name}"\nДата проведения: {date}\nМесто проведения: {place}\n\n{description}', reply_markup=regin)
     elif data[1] == "page":
         page = int(data[2])
         limit = 4
@@ -290,8 +338,8 @@ async def registration(callback: types.CallbackQuery):
     surname = db_fetchone("SELECT surname FROM users WHERE id = ?", (tg_id,))[0]
     second_name = db_fetchone("SELECT second_name FROM users WHERE id = ?", (tg_id,))[0]
     fio = name + " " + surname + " " + second_name
-    filename = f"1.png"
-    qr = QRCodeStyled()
+    filename = f"{tg_id}.png"
+    qr = QRCodeStyled(error_correction=ERROR_CORRECT_L)
     with open(os.path.join("qr_codes/", filename), 'wb') as photo:
         qr.get_image(f"{name} {surname}").save(photo, "WEBP", quality=0)
     img1 = Image.open(os.path.join("qr_codes/background/background.png"))
