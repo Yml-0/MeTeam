@@ -165,6 +165,23 @@ async def start(message: types.Message):
         await message.answer("Меню", reply_markup=start_butn_admin)
 
 
+@dp.message_handler(commands=["form"])
+async def form(message: types.Message):
+    rowid = 1
+    link = "https://forms.gle/9tRb3qM92aPRhGgq9"
+    text = "Добрый день всем участникам <b>Фиджитал Игр</b> в ГБОУ Школа 1547!\n\nОтветьте, пожалуйста, на <b>вопросы формы</b>, нажав на кнопку."
+    form = types.InlineKeyboardMarkup(2)
+    form.add(types.InlineKeyboardButton(text="Ответить", callback_data=f"chanel", url=f"{link}"))
+    str_ent = db_fetchone("SELECT * FROM events WHERE rowid = ?", (rowid,))[3].split(",")
+    if message.from_user.id != 639545029 or message.from_user.id != 1087465791:
+        try:
+            for i in range(len(str_ent)):
+                await bot.send_message(int(str_ent[i]), text, parse_mode="HTML", reply_markup=form)
+            await message.answer("Успех!")
+        except:
+            await message.answer("Возникла какая-то ошибка👀")
+
+
 @dp.message_handler(commands=["results"])
 async def results(message: types.Message):
     if message.from_user.id != 639545029 or message.from_user.id != 1087465791:
