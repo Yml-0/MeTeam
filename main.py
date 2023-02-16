@@ -153,9 +153,10 @@ async def start(message: types.Message):
         db_execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?)",
                         (0, 0, 0, tg_id, 0, 0, 0))
         chanel = types.InlineKeyboardMarkup(1)
-        chanel.add(types.InlineKeyboardButton(text="ЖМИ", callback_data=f"chanel", url="https://t.me/fidjital1547"))
-        await message.answer("Привет, я бот, который поможет тебе участвовать в мероприятиях школы и получать крутые призы!\nТакже подписывайся на нашу группу, чтобы не пропустить ни одного мероприятия!", reply_markup=chanel)
-        time.sleep(2)
+        # chanel.add(types.InlineKeyboardButton(text="ЖМИ", callback_data=f"chanel", url="https://t.me/fidjital1547"))
+        await message.answer("Привет, я бот, который поможет тебе участвовать в мероприятиях школы и получать крутые призы!")
+        #\nТакже подписывайся на нашу группу, чтобы не пропустить ни одного мероприятия!"
+        #time.sleep(2)
         markup = types.ReplyKeyboardRemove()
         await message.answer("Для начала, напиши своё <i>имя</i>, чтобы я мог тебя запомнить!", reply_markup=markup, parse_mode="HTML")
         await Form.name.set()
